@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>色決めルーレット</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #222; color: #fff; text-align: center; margin: 0; padding: 0; }
+        .container { margin: 50px auto; background: #333; padding: 40px 50px; border-radius: 20px; display: inline-block; }
+        .hidden { display: none; }
+        button { margin: 10px; padding: 12px; font-size: 22px; border-radius: 7px; border: none; background: #00b300; color: #fff; cursor: pointer; }
+        button:disabled { background: #666; cursor: not-allowed; }
+        /* Animation box (roulette) */
+        .animate-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 420px;
+            height: 100px;
+            background: #444;
+            color: #fff;
+            margin: 40px 0;
+            border-radius: 32px;
+            font-size: 3em;
+            font-weight: bold;
+            box-shadow: 0 0 48px #111;
+            transition: background 0.2s, color 0.2s, transform 0.2s;
+            vertical-align: middle;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        /* Winner box (a little bigger) */
+        .winner-box {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 500px;
+            height: 130px;
+            background: #00b300;
+            color: #fff;
+            border-radius: 36px;
+            font-size: 3.5em;
+            font-weight: bold;
+            box-shadow: 0 0 56px #00b300;
+            margin: 80px 0 30px 0;
+            animation: winnerFlash 1s ease;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        @keyframes winnerFlash {
+            0%   { background: #ffd700; color: #222; }
+            50%  { background: #00b300; color: #fff; }
+            100% { background: #00b300; color: #fff; }
+        }
+        .animate-box.flash {
+            background: #ffd700 !important;
+            color: #222 !important;
+            transform: scale(1.0);
+            box-shadow: 0 0 50px #ffd700;
+        }
+        .page-title { font-size: 2.3em; margin-bottom: 22px; }
+        .winner-white { color: #fff; }
+        .winner-red { color: #ff2222; }
+        .winner-arrow { color: #111; }
+        .winner-green { color: #00ff00; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Page 1: Start Button Only -->
+        <div id="page1">
+            <div class="page-title">色決めルーレット</div>
+            <button id="goRouletteBtn">ルーレットへ進む</button>
+        </div>
+        <!-- Page 2: Roulette -->
+        <div id="page2" class="hidden">
+            <div class="page-title">色決めルーレット</div>
+            <div id="animationArea"></div>
+            <button id="spinBtn">ルーレットを回す</button>
+            <button id="backBtn" style="background:#222; color:#ffd700; margin-left:20px;">戻る</button>
+        </div>
+    </div>
+    <script>
+        // Fixed options
+        const options = ["←赤　白→", "←白　赤→"];
+        let spinning = false;
+
+        // Get elements
+        const page1 = document.getElementById('page1');
+        const page2 = document.getElementById('page2');
+        const goRouletteBtn = document.getElementById('goRouletteBtn');
+        const spinBtn = document.getElementById('spinBtn');
+        const backBtn = document.getElementById('backBtn');
+        const animationArea = document.getElementById('animationArea');
+
+        // Utility to wrap winner text for color
+        function renderWinner(winner) {
+            let html = '';
+            for (let i = 0; i < winner.length; i++) {
+                const ch = winner[i];
+                if (ch === '白') {
+                    html += '<span class="winner-white">' + ch + '</span>';
+                } else if (ch === '赤') {
+                    html += '<span class="winner-red">' + ch + '</span>';
+                } else if (ch === '→' || ch === '←') {
+                    html += '<span class="winner-arrow">' + ch + '</span>';
+                } else if (ch.trim() !== '') {
+                    html += '<span class="winner-green">' + ch + '</span>';
+                } else {
+                    html += ch; // preserve spaces
+                }
+            }
+            return html;
+        }
+
+        // Go to Roulette Page
+        goRouletteBtn.onclick = function() {
+            animationArea.innerHTML = '';
+            page1.classList.add('hidden');
+            page2.classList.remove('hidden');
+        };
+
+        // Back to Start Page
+        backBtn.onclick = function() {
+            page2.classList.add('hidden');
+            page1.classList.remove('hidden');
+            animationArea.innerHTML = '';
+        };
+
+        // Spin Animation and Winner (10 seconds, fast to slow)
+        spinBtn.onclick = function() {
+            if (spinning) return;
+            spinning = true;
+            spinBtn.disabled = true;
+            backBtn.disabled = true;
+            animationArea.innerHTML = '';
+
+            // Create animation box
+            const box = document.createElement('div');
+            box.className = 'animate-box';
+            box.textContent = '...';
+            animationArea.appendChild(box);
+
+            const duration = 10000; // 10 seconds
+            const flashes = 40; // 40 flashes for smooth slow-down
+            let currentStep = 0;
+            let prevIdx = -1;
+            const start = performance.now();
+
+            function easeOut(t) {
+                // easeOutQuad
+                return t * (2 - t);
+            }
+
+            function animate(now) {
+                // Calculate progress (0~1)
+                const elapsed = now - start;
+                let progress = Math.min(elapsed / duration, 1);
+
+                // Use easeOut to slow down near the end
+                const eased = easeOut(progress);
+
+                // Compute which flash we should be on
+                const flashStep = Math.floor(eased * flashes);
+
+                if (flashStep > currentStep) {
+                    // Show flash
+                    let idx;
+                    do {
+                        idx = Math.floor(Math.random() * options.length);
+                    } while (idx === prevIdx);
+                    prevIdx = idx;
+                    box.innerHTML = renderWinner(options[idx]);
+                    box.classList.toggle('flash');
+                    currentStep = flashStep;
+                }
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                } else {
+                    // Show winner with colored text, centered and bigger box
+                    animationArea.innerHTML = `<div class="winner-box">${renderWinner(options[Math.floor(Math.random() * options.length)])}</div>`;
+                    spinning = false;
+                    spinBtn.disabled = false;
+                    backBtn.disabled = false;
+                }
+            }
+            requestAnimationFrame(animate);
+        };
+    </script>
+</body>
+</html>
